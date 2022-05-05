@@ -152,6 +152,16 @@ func TestF(t *testing.T) {
 	try.E(io.EOF)
 }
 
+func TestHandleOverwrite(t *testing.T) {
+	err := func() (err error) {
+		try.Handle(&err)
+		return io.EOF
+	}()
+	if err !=io.EOF {
+		t.Errorf("want %v, got %v", err, io.EOF)
+	}
+}
+
 func success() (a int, b string, c bool, err error) {
 	return +1, "success", true, nil
 }
