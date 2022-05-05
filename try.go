@@ -25,7 +25,6 @@
 // development speed is a greater priority than reliability.
 // Since the E functions panic if an error is encountered, recovering in such programs is optional.
 //
-//
 // Code before try:
 //
 //	func (a *MixedArray) UnmarshalNext(uo json.UnmarshalOptions, d *json.Decoder) error {
@@ -71,58 +70,50 @@
 //		return nil
 //	}
 //
-//
-// Quick tour of the API
-//
+// # Quick tour of the API
 //
 // The E family of functions all remove a final error return, panicking if non-nil.
 //
-//
 // Handle allows easy assignment of that error to a return error value.
 //
-//  func f() (err error) {
-//  	defer try.Handle(&err)
-//  	// ...
-//  }
-//
+//	func f() (err error) {
+//		defer try.Handle(&err)
+//		// ...
+//	}
 //
 // HandleF is like Handle, but it calls a function after any such assignment.
 //
-//  func f() (err error) {
-//		defer try.HandleF(&err, func() {
-//			if err == io.EOF {
-//				err = io.ErrUnexpectedEOF
-//			}
-//		})
-//  	// ...
-//  }
-//
+//	 func f() (err error) {
+//			defer try.HandleF(&err, func() {
+//				if err == io.EOF {
+//					err = io.ErrUnexpectedEOF
+//				}
+//			})
+//	 	// ...
+//	 }
 //
 // F wraps an error with file and line formation and calls a function on error.
 // It plays nicely with testing.TB and log.Fatal.
 //
-//  func TestFoo(t *testing.T) {
-//  	defer try.F(t.Fatal)
-//  	// ...
-//  }
+//	func TestFoo(t *testing.T) {
+//		defer try.F(t.Fatal)
+//		// ...
+//	}
 //
-//  func main() {
-//  	defer try.F(log.Fatal)
-//  	// ...
-//  }
-//
+//	func main() {
+//		defer try.F(log.Fatal)
+//		// ...
+//	}
 //
 // Recover is like F, but it supports more complicated error handling
 // by passing the error and runtime frame directly to a function.
 //
-//  func f() {
-//  	defer try.Recover(func(err error, frame runtime.Frame) {
-//  		// do something useful with err and frame
-// 		})
-//  	// ...
-//  }
-//
-//
+//	 func f() {
+//	 	defer try.Recover(func(err error, frame runtime.Frame) {
+//	 		// do something useful with err and frame
+//			})
+//	 	// ...
+//	 }
 package try
 
 import (

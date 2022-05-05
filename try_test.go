@@ -157,7 +157,7 @@ func TestHandleOverwrite(t *testing.T) {
 		try.Handle(&err)
 		return io.EOF
 	}()
-	if err !=io.EOF {
+	if err != io.EOF {
 		t.Errorf("want %v, got %v", err, io.EOF)
 	}
 }
