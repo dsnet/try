@@ -129,7 +129,16 @@ type wrapError struct {
 }
 
 func (e wrapError) Error() string {
-	return e.frame.File + ":" + strconv.Itoa(e.frame.Line) + ": " + e.error.Error()
+	// Retrieve the last path segment of the filename.
+	// We avoid using strings.LastIndexByte to keep dependencies small.
+	file := e.frame.File
+	for i := len(file) - 1; i >= 0; i-- {
+		if file[i] == '/' {
+			file = file[i+len("/"):]
+			break
+		}
+	}
+	return file + ":" + strconv.Itoa(e.frame.Line) + ": " + e.error.Error()
 }
 
 // Unwrap primarily exists for testing purposes.
