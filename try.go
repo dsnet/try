@@ -182,7 +182,7 @@ func HandleF(errptr *error, fn func()) {
 // The wrapping includes the file and line of the runtime frame in which it occurred.
 // F pairs well with testing.TB.Fatal and log.Fatal.
 func F(fn func(...any)) {
-	r(recover(), func(w wrapError) { fn(w) })
+	r(recover(), func(w wrapError) { f(fn, w) })
 }
 
 func e(err error) {
@@ -228,4 +228,14 @@ func E3[A, B, C any](a A, b B, c C, err error) (A, B, C) {
 func E4[A, B, C, D any](a A, b B, c C, d D, err error) (A, B, C, D) {
 	e(err)
 	return a, b, c, d
+}
+
+// f simply calls fn with w.
+//
+// This uses the special "line" pragma to set the file and line number to be
+// something consistent. It must be declared last in the file to prevent "line"
+// from affecting the line numbers of anything else in this file.
+func f(fn func(...any), w wrapError) {
+//line try.go:1
+	fn(w)
 }

@@ -140,9 +140,9 @@ func TestFrame(t *testing.T) {
 
 func TestF(t *testing.T) {
 	buf := new(strings.Builder)
-	logger := log.New(buf, "", 0)
+	logger := log.New(buf, "", log.Lshortfile)
 	defer func() {
-		const want = "y.go:10: EOF\n"
+		const want = "try.go:1: y.go:10: EOF\n"
 		if got := buf.String(); got != want {
 			t.Errorf("want %q, got %q", want, got)
 		}
