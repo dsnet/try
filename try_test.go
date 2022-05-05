@@ -112,25 +112,39 @@ func Test(t *testing.T) {
 }
 
 func TestFrame(t *testing.T) {
-	defer try.Recover(func(err error, frame runtime.Frame) {
-		if frame.File != "x.go" {
-			t.Errorf("want File=x.go, got %q", frame.File)
-		}
-		if frame.Line != 4 {
-			t.Errorf("want Line=4, got %d", frame.Line)
-		}
-	})
+	t.Run("E", func(t *testing.T) {
+		defer try.Recover(func(err error, frame runtime.Frame) {
+			if frame.File != "x.go" {
+				t.Errorf("want File=x.go, got %q", frame.File)
+			}
+			if frame.Line != 4 {
+				t.Errorf("want Line=4, got %d", frame.Line)
+			}
+		})
 //line x.go:4
-	try.E(errors.New("crash and burn"))
+		try.E(errors.New("crash and burn"))
+	})
+	t.Run("E3", func(t *testing.T) {
+		defer try.Recover(func(err error, frame runtime.Frame) {
+			if frame.File != "x.go" {
+				t.Errorf("want File=x.go, got %q", frame.File)
+			}
+			if frame.Line != 4 {
+				t.Errorf("want Line=4, got %d", frame.Line)
+			}
+		})
+//line x.go:4
+		try.E3(failure())
+	})
 }
 
 func TestF(t *testing.T) {
 	buf := new(strings.Builder)
 	logger := log.New(buf, "", 0)
 	defer func() {
-		const want = "y.go:10 EOF\n"
+		const want = "y.go:10: EOF\n"
 		if got := buf.String(); got != want {
-			t.Errorf("want %q, got %q",want, got)
+			t.Errorf("want %q, got %q", want, got)
 		}
 	}()
 	defer try.F(logger.Print)

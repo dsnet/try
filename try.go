@@ -69,6 +69,47 @@
 //		return nil
 //	}
 //
+//
+// Quick tour of the API
+//
+//
+// The E family of functions all remove a final error return, panicking if non-nil.
+//
+//
+// Handle allows easy assignment of that error to a return error value.
+//
+//  func f() (err error) {
+//  	defer try.Handle(&err)
+//
+//
+// HandleF is like Handle, but it calls a function after any such assignment.
+//
+//  func f() (err error) {
+//		defer try.HandleF(&err, func() {
+//			if err == io.EOF {
+//				err = io.ErrUnexpectedEOF
+//			}
+//		})
+//
+// F wraps an error with file and line formation and calls a function on error.
+// It plays nicely with testing.TB and log.Fatal.
+//
+//  func TestFoo(t *testing.T) {
+//  	defer try.F(t.Fatal)
+//
+//  func main() {
+//  	defer try.F(log.Fatal)
+//
+//
+// Recover is like F, but it supports more complicated error handling
+// by passing the error and runtime frame directly to a function.
+//
+//  func f() {
+//  	defer try.Recover(func(err error, frame runtime.Frame) {
+//  		// do something useful with err and frame
+// 		})
+//
+//
 package try
 
 import (
@@ -127,16 +168,15 @@ func HandleF(errptr *error, fn func()) {
 // F pairs well with testing.TB.Fatal and log.Fatal.
 func F(fn func(...any)) {
 	r(recover(), func(err error, frame runtime.Frame) {
-		fn(fmt.Errorf("%s:%d %w", frame.File, frame.Line, err))
+		fn(fmt.Errorf("%s:%d: %w", frame.File, frame.Line, err))
 	})
 }
 
-// E panics if err is non-nil.
-func E(err error) {
+func e(err error) {
 	if err != nil {
 		pc := make([]uintptr, 1)
-		// 2: runtime.Callers, E
-		n := runtime.Callers(2, pc)
+		// 3: runtime.Callers, e, E
+		n := runtime.Callers(3, pc)
 		pc = pc[:n]
 		frames := runtime.CallersFrames(pc)
 		frame, _ := frames.Next()
@@ -144,30 +184,35 @@ func E(err error) {
 	}
 }
 
+// E panics if err is non-nil.
+func E(err error) {
+	e(err)
+}
+
 // E1 returns a as is.
 // It panics if err is non-nil.
 func E1[A any](a A, err error) A {
-	E(err)
+	e(err)
 	return a
 }
 
 // E2 returns a and b as is.
 // It panics if err is non-nil.
 func E2[A, B any](a A, b B, err error) (A, B) {
-	E(err)
+	e(err)
 	return a, b
 }
 
 // E3 returns a, b, and c as is.
 // It panics if err is non-nil.
 func E3[A, B, C any](a A, b B, c C, err error) (A, B, C) {
-	E(err)
+	e(err)
 	return a, b, c
 }
 
 // E4 returns a, b, c, and d as is.
 // It panics if err is non-nil.
 func E4[A, B, C, D any](a A, b B, c C, d D, err error) (A, B, C, D) {
-	E(err)
+	e(err)
 	return a, b, c, d
 }
