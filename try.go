@@ -78,31 +78,31 @@
 //
 //	func f() (err error) {
 //		defer try.Handle(&err)
-//		// ...
+//		...
 //	}
 //
 // HandleF is like Handle, but it calls a function after any such assignment.
 //
 //	 func f() (err error) {
-//			defer try.HandleF(&err, func() {
-//				if err == io.EOF {
-//					err = io.ErrUnexpectedEOF
-//				}
-//			})
-//	 	// ...
+//		defer try.HandleF(&err, func() {
+//			if err == io.EOF {
+//				err = io.ErrUnexpectedEOF
+//			}
+//		})
+//	 	...
 //	 }
 //
 // F wraps an error with file and line formation and calls a function on error.
-// It plays nicely with testing.TB and log.Fatal.
+// It inter-operates well with testing.TB and log.Fatal.
 //
 //	func TestFoo(t *testing.T) {
 //		defer try.F(t.Fatal)
-//		// ...
+//		...
 //	}
 //
 //	func main() {
 //		defer try.F(log.Fatal)
-//		// ...
+//		...
 //	}
 //
 // Recover is like F, but it supports more complicated error handling
@@ -111,8 +111,8 @@
 //	 func f() {
 //	 	defer try.Recover(func(err error, frame runtime.Frame) {
 //	 		// do something useful with err and frame
-//			})
-//	 	// ...
+//		})
+//	 	...
 //	 }
 package try
 
