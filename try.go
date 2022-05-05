@@ -26,7 +26,6 @@
 // Since the E functions panic if an error is encountered, recovering in such programs is optional.
 //
 //
-//
 // Code before try:
 //
 //	func (a *MixedArray) UnmarshalNext(uo json.UnmarshalOptions, d *json.Decoder) error {
@@ -127,8 +126,8 @@
 package try
 
 import (
-	"fmt"
 	"runtime"
+	"strconv"
 )
 
 // wrapError wraps an error to ensure that we only recover from errors
@@ -138,16 +137,20 @@ type wrapError struct {
 	frame runtime.Frame
 }
 
+func (e wrapError) Error() string {
+	return e.frame.File + ":" + strconv.Itoa(e.frame.Line) + ": " + e.error.Error()
+}
+
 // Unwrap primarily exists for testing purposes.
 func (e wrapError) Unwrap() error {
 	return e.error
 }
 
-func r(recovered any, fn func(err error, frame runtime.Frame)) {
+func r(recovered any, fn func(wrapError)) {
 	switch ex := recovered.(type) {
 	case nil:
 	case wrapError:
-		fn(ex.error, ex.frame)
+		fn(ex)
 	default:
 		panic(ex)
 	}
@@ -156,22 +159,20 @@ func r(recovered any, fn func(err error, frame runtime.Frame)) {
 // Recover recovers an error previously panicked with an E function.
 // If it recovers an error, it calls fn with the error and the runtime frame in which it occurred.
 func Recover(fn func(err error, frame runtime.Frame)) {
-	r(recover(), fn)
+	r(recover(), func(w wrapError) { fn(w.error, w.frame) })
 }
 
 // Handle recovers an error previously panicked with an E function and stores it into errptr.
 func Handle(errptr *error) {
-	r(recover(), func(err error, _ runtime.Frame) {
-		*errptr = err
-	})
+	r(recover(), func(w wrapError) { *errptr = w.error })
 }
 
 // HandleF recovers an error previously panicked with an E function and stores it into errptr.
 // If it recovers an error, it calls fn.
 func HandleF(errptr *error, fn func()) {
-	r(recover(), func(err error, _ runtime.Frame) {
-		*errptr = err
-		if err != nil {
+	r(recover(), func(w wrapError) {
+		*errptr = w.error
+		if w.error != nil {
 			fn()
 		}
 	})
@@ -181,9 +182,7 @@ func HandleF(errptr *error, fn func()) {
 // The wrapping includes the file and line of the runtime frame in which it occurred.
 // F pairs well with testing.TB.Fatal and log.Fatal.
 func F(fn func(...any)) {
-	r(recover(), func(err error, frame runtime.Frame) {
-		fn(fmt.Errorf("%s:%d: %w", frame.File, frame.Line, err))
-	})
+	r(recover(), func(w wrapError) { fn(w) })
 }
 
 func e(err error) {
