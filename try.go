@@ -72,93 +72,75 @@
 package try
 
 import (
-	"log"
+	"fmt"
 	"runtime"
-	"testing"
 )
 
 // wrapError wraps an error to ensure that we only recover from errors
 // panicked by this package.
-type wrapError struct{ error }
-
-// Unwrap primarily exists for testing purposes.
-func (e wrapError) Unwrap() error { return e.error }
-
-// Recover recovers a previously panicked error and stores it into err.
-// If it successfully recovers an error, and fn is non-nil,
-// it calls fn with the runtime frame in which the error occurred.
-//
-// Recover is a general purpose API.
-// Most use cases will be better served by Handle, HandleF, TB, or Fatal.
-func Recover(errptr *error, fn func(runtime.Frame)) {
-	r(recover(), errptr, fn)
+type wrapError struct {
+	error
+	frame runtime.Frame
 }
 
-// r implements recover.
-// It is a separate function from Recover to keep stack counts consistent.
-func r(recovered any, err *error, fn func(runtime.Frame)) {
+// Unwrap primarily exists for testing purposes.
+func (e wrapError) Unwrap() error {
+	return e.error
+}
+
+func r(recovered any, fn func(err error, frame runtime.Frame)) {
 	switch ex := recovered.(type) {
 	case nil:
-		return
 	case wrapError:
-		*err = ex.error
-		if fn != nil {
-			pc := make([]uintptr, 1)
-			// 5: runtime.Callers, r, Recover/Handle/etc, the function that called defer Recover, the actual panic.
-			n := runtime.Callers(5, pc)
-			pc = pc[:n]
-			frames := runtime.CallersFrames(pc)
-			frame, _ := frames.Next()
-			fn(frame)
-		}
+		fn(ex.error, ex.frame)
 	default:
 		panic(ex)
 	}
 }
 
-// Handle recovers a previously panicked error and stores it into err.
+// Recover recovers an error previously panicked with an E function.
+// If it recovers an error, it calls fn with the error and the runtime frame in which it occurred.
+func Recover(fn func(err error, frame runtime.Frame)) {
+	r(recover(), fn)
+}
+
+// Handle recovers an error previously panicked with an E function and stores it into errptr.
 func Handle(errptr *error) {
-	r(recover(), errptr, nil)
-}
-
-// HandleF recovers a previously panicked error and stores it into err.
-// If it successfully recovers an error, it calls fn.
-func HandleF(errptr *error, fn func()) {
-	r(recover(), errptr, func(runtime.Frame) { fn() })
-}
-
-// TB recovers any panicked errors from this package and calls tb.Fatalf.
-// It is useful for simple tests and benchmarks:
-//
-// func TestFoo(t *testing.T) {
-//   defer try.TB(t)
-//   // use try.E throughout your test
-// }
-func TB(tb testing.TB) {
-	var err error
-	r(recover(), &err, func(frame runtime.Frame) {
-		tb.Fatalf("%s:%d %v", frame.File, frame.Line, err)
+	r(recover(), func(err error, _ runtime.Frame) {
+		*errptr = err
 	})
 }
 
-// Fatal recovers any panicked errors from this package and calls log.Fatalf.
-// It is useful in quick-and-dirty scripts:
-//
-// func main() {
-//   defer try.Fatal()
-//   // use try.E throughout your program
-// }
-func Fatal() {
-	var err error
-	r(recover(), &err, func(frame runtime.Frame) {
-		log.Fatalf("%s:%d %v", frame.File, frame.Line, err)
+// HandleF recovers an error previously panicked with an E function and stores it into errptr.
+// If it recovers an error, it calls fn.
+func HandleF(errptr *error, fn func()) {
+	r(recover(), func(err error, _ runtime.Frame) {
+		*errptr = err
+		if err != nil {
+			fn()
+		}
+	})
+}
+
+// F recovers an error previously panicked with an E function, wraps it, and passes it to fn.
+// The wrapping includes the file and line of the runtime frame in which it occurred.
+// F pairs well with testing.TB.Fatal and log.Fatal.
+func F(fn func(...any)) {
+	r(recover(), func(err error, frame runtime.Frame) {
+		fn(fmt.Errorf("%s:%d %w", frame.File, frame.Line, err))
 	})
 }
 
 // E panics if err is non-nil.
 func E(err error) {
 	if err != nil {
-		panic(wrapError{err})
+		pc := make([]uintptr, 1)
+		// 2: runtime.Callers, E
+		n := runtime.Callers(2, pc)
+		pc = pc[:n]
+		frames := runtime.CallersFrames(pc)
+		frame, _ := frames.Next()
+		panic(wrapError{error: err, frame: frame})
 	}
 }
 
