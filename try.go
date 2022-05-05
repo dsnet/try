@@ -49,7 +49,7 @@
 //		case err != nil:
 //			return err
 //		case t.Kind() != ']':
-//			return fmt.Errorf("got %v, expecting array start", t.Kind())
+//			return fmt.Errorf("got %v, expecting array end", t.Kind())
 //		}
 //		return nil
 //	}
@@ -65,7 +65,7 @@
 //		try.E(uo.UnmarshalNext(d, &a.Slice))
 //		try.E(uo.UnmarshalNext(d, &a.Map))
 //		if t := try.E1(d.ReadToken()); t.Kind() != ']' {
-//			return fmt.Errorf("found %v, expecting array start", t.Kind())
+//			return fmt.Errorf("found %v, expecting array end", t.Kind())
 //		}
 //		return nil
 //	}
