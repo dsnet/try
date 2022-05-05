@@ -148,7 +148,7 @@ func TestF(t *testing.T) {
 		}
 	}()
 	defer try.F(logger.Print)
-//line y.go:10
+//line /full/path/to/y.go:10
 	try.E(io.EOF)
 }
 
