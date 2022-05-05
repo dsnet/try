@@ -17,11 +17,14 @@
 //		return ..., nil
 //	}
 //
-// This package is not intended for production critical code.
+// This package is a sharp tool and should be used with care.
 // Quick and easy error handling can occlude critical error handling logic.
-// Rather, it is intended for short Go programs and unit tests where
+// Panic handling generally should not cross package boundaries or be an explicit part of an API.
+//
+// Package try is a good fit for short Go programs and unit tests where
 // development speed is a greater priority than reliability.
-// Since the E functions panic if an error is encountered, recovering is optional.
+// Since the E functions panic if an error is encountered, recovering in such programs is optional.
+//
 //
 //
 // Code before try:
@@ -80,6 +83,8 @@
 //
 //  func f() (err error) {
 //  	defer try.Handle(&err)
+//  	// ...
+//  }
 //
 //
 // HandleF is like Handle, but it calls a function after any such assignment.
@@ -90,15 +95,22 @@
 //				err = io.ErrUnexpectedEOF
 //			}
 //		})
+//  	// ...
+//  }
+//
 //
 // F wraps an error with file and line formation and calls a function on error.
 // It plays nicely with testing.TB and log.Fatal.
 //
 //  func TestFoo(t *testing.T) {
 //  	defer try.F(t.Fatal)
+//  	// ...
+//  }
 //
 //  func main() {
 //  	defer try.F(log.Fatal)
+//  	// ...
+//  }
 //
 //
 // Recover is like F, but it supports more complicated error handling
@@ -108,6 +120,8 @@
 //  	defer try.Recover(func(err error, frame runtime.Frame) {
 //  		// do something useful with err and frame
 // 		})
+//  	// ...
+//  }
 //
 //
 package try
