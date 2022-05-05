@@ -7,6 +7,9 @@ package try_test
 import (
 	"errors"
 	"io"
+	"log"
+	"runtime"
+	"strings"
 	"testing"
 
 	"github.com/dsnet/try"
@@ -19,7 +22,7 @@ func Test(t *testing.T) {
 		wantError error
 		wantPanic error
 	}{{
-		name: "NoCatch/Success",
+		name: "NoRecover/Success",
 		run: func(t *testing.T) error {
 			a, b, c := try.E3(success())
 			if a != 1 && b != "success" && c != true {
@@ -28,7 +31,7 @@ func Test(t *testing.T) {
 			return nil
 		},
 	}, {
-		name: "NoCatch/Failure",
+		name: "NoRecover/Failure",
 		run: func(t *testing.T) error {
 			a, b, c := try.E3(failure())
 			t.Errorf("failure() = (%v, %v, %v), want panic", a, b, c)
@@ -36,9 +39,9 @@ func Test(t *testing.T) {
 		},
 		wantPanic: io.EOF,
 	}, {
-		name: "Catch/Success",
+		name: "Recover/Success",
 		run: func(t *testing.T) (err error) {
-			defer try.Catch(&err)
+			defer try.Handle(&err)
 			a, b, c := try.E3(success())
 			if a != 1 && b != "success" && c != true {
 				t.Errorf("success() = (%v, %v, %v), want (1, success, true)", a, b, c)
@@ -46,18 +49,18 @@ func Test(t *testing.T) {
 			return nil
 		},
 	}, {
-		name: "Catch/Failure",
+		name: "Recover/Failure",
 		run: func(t *testing.T) (err error) {
-			defer try.Catch(&err)
+			defer try.Handle(&err)
 			a, b, c := try.E3(failure())
 			t.Errorf("failure() = (%v, %v, %v), want panic", a, b, c)
 			return nil
 		},
 		wantError: io.EOF,
 	}, {
-		name: "Catch/Failure/Ignored",
+		name: "Recover/Failure/Ignored",
 		run: func(t *testing.T) (err error) {
-			defer try.Catch(&err, func() {
+			defer try.HandleF(&err, func() {
 				if err == io.EOF {
 					err = nil
 				}
@@ -67,9 +70,9 @@ func Test(t *testing.T) {
 			return nil
 		},
 	}, {
-		name: "Catch/Failure/Replaced",
+		name: "Recover/Failure/Replaced",
 		run: func(t *testing.T) (err error) {
-			defer try.Catch(&err, func() {
+			defer try.HandleF(&err, func() {
 				if err == io.EOF {
 					err = io.ErrUnexpectedEOF
 				}
@@ -85,7 +88,17 @@ func Test(t *testing.T) {
 			var gotError error
 			var gotPanic error
 			func() {
-				defer func() { gotPanic, _ = recover().(error) }()
+				defer func() {
+					r := recover()
+					if r == nil {
+						return
+					}
+					var ok bool
+					gotPanic, ok = r.(error)
+					if !ok {
+						t.Errorf("recovered non-error %T", r)
+					}
+				}()
 				gotError = tt.run(t)
 			}()
 			switch {
@@ -95,6 +108,57 @@ func Test(t *testing.T) {
 				t.Errorf("panicked error: got %v, want %v", gotPanic, tt.wantPanic)
 			}
 		})
+	}
+}
+
+func TestFrame(t *testing.T) {
+	t.Run("E", func(t *testing.T) {
+		defer try.Recover(func(err error, frame runtime.Frame) {
+			if frame.File != "x.go" {
+				t.Errorf("want File=x.go, got %q", frame.File)
+			}
+			if frame.Line != 4 {
+				t.Errorf("want Line=4, got %d", frame.Line)
+			}
+		})
+//line x.go:4
+		try.E(errors.New("crash and burn"))
+	})
+	t.Run("E3", func(t *testing.T) {
+		defer try.Recover(func(err error, frame runtime.Frame) {
+			if frame.File != "x.go" {
+				t.Errorf("want File=x.go, got %q", frame.File)
+			}
+			if frame.Line != 4 {
+				t.Errorf("want Line=4, got %d", frame.Line)
+			}
+		})
+//line x.go:4
+		try.E3(failure())
+	})
+}
+
+func TestF(t *testing.T) {
+	buf := new(strings.Builder)
+	logger := log.New(buf, "", 0)
+	defer func() {
+		const want = "y.go:10: EOF\n"
+		if got := buf.String(); got != want {
+			t.Errorf("want %q, got %q", want, got)
+		}
+	}()
+	defer try.F(logger.Print)
+//line y.go:10
+	try.E(io.EOF)
+}
+
+func TestHandleOverwrite(t *testing.T) {
+	err := func() (err error) {
+		try.Handle(&err)
+		return io.EOF
+	}()
+	if err !=io.EOF {
+		t.Errorf("want %v, got %v", err, io.EOF)
 	}
 }
 
@@ -110,7 +174,7 @@ func BenchmarkSuccess(b *testing.B) {
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
 		func() (err error) {
-			defer try.Catch(&err)
+			defer try.Handle(&err)
 			try.E3(success())
 			return nil
 		}()
@@ -121,7 +185,7 @@ func BenchmarkFailure(b *testing.B) {
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
 		func() (err error) {
-			defer try.Catch(&err)
+			defer try.Handle(&err)
 			try.E3(failure())
 			return nil
 		}()
