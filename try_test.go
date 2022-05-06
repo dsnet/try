@@ -170,14 +170,27 @@ func failure() (a int, b string, c bool, err error) {
 	return -1, "failure", false, io.EOF
 }
 
-func BenchmarkSuccess(b *testing.B) {
+var sink struct {
+	A int
+	B string
+	C bool
+}
+
+func BenchmarkDefer(b *testing.B) {
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
 		func() (err error) {
 			defer try.Handle(&err)
-			try.E3(success())
 			return nil
 		}()
+	}
+}
+
+func BenchmarkSuccess(b *testing.B) {
+	defer try.F(b.Fatal)
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		sink.A, sink.B, sink.C = try.E3(success())
 	}
 }
 
@@ -186,7 +199,7 @@ func BenchmarkFailure(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		func() (err error) {
 			defer try.Handle(&err)
-			try.E3(failure())
+			sink.A, sink.B, sink.C = try.E3(failure())
 			return nil
 		}()
 	}
