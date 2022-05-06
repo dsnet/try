@@ -125,20 +125,22 @@ import (
 // panicked by this package.
 type wrapError struct {
 	error
-	frame runtime.Frame
+	pc [1]uintptr
 }
 
 func (e wrapError) Error() string {
 	// Retrieve the last path segment of the filename.
 	// We avoid using strings.LastIndexByte to keep dependencies small.
-	file := e.frame.File
+	frames := runtime.CallersFrames(e.pc[:])
+	frame, _ := frames.Next()
+	file := frame.File
 	for i := len(file) - 1; i >= 0; i-- {
 		if file[i] == '/' {
 			file = file[i+len("/"):]
 			break
 		}
 	}
-	return file + ":" + strconv.Itoa(e.frame.Line) + ": " + e.error.Error()
+	return file + ":" + strconv.Itoa(frame.Line) + ": " + e.error.Error()
 }
 
 // Unwrap primarily exists for testing purposes.
@@ -159,7 +161,11 @@ func r(recovered any, fn func(wrapError)) {
 // Recover recovers an error previously panicked with an E function.
 // If it recovers an error, it calls fn with the error and the runtime frame in which it occurred.
 func Recover(fn func(err error, frame runtime.Frame)) {
-	r(recover(), func(w wrapError) { fn(w.error, w.frame) })
+	r(recover(), func(w wrapError) {
+		frames := runtime.CallersFrames(w.pc[:])
+		frame, _ := frames.Next()
+		fn(w.error, frame)
+	})
 }
 
 // Handle recovers an error previously panicked with an E function and stores it into errptr.
@@ -186,47 +192,52 @@ func F(fn func(...any)) {
 }
 
 func e(err error) {
-	if err != nil {
-		pc := make([]uintptr, 1)
-		// 3: runtime.Callers, e, E
-		n := runtime.Callers(3, pc)
-		pc = pc[:n]
-		frames := runtime.CallersFrames(pc)
-		frame, _ := frames.Next()
-		panic(wrapError{error: err, frame: frame})
-	}
+	we := wrapError{error: err}
+	// 3: runtime.Callers, e, E
+	runtime.Callers(3, we.pc[:])
+	panic(we)
 }
 
 // E panics if err is non-nil.
 func E(err error) {
-	e(err)
+	if err != nil {
+		e(err)
+	}
 }
 
 // E1 returns a as is.
 // It panics if err is non-nil.
 func E1[A any](a A, err error) A {
-	e(err)
+	if err != nil {
+		e(err)
+	}
 	return a
 }
 
 // E2 returns a and b as is.
 // It panics if err is non-nil.
 func E2[A, B any](a A, b B, err error) (A, B) {
-	e(err)
+	if err != nil {
+		e(err)
+	}
 	return a, b
 }
 
 // E3 returns a, b, and c as is.
 // It panics if err is non-nil.
 func E3[A, B, C any](a A, b B, c C, err error) (A, B, C) {
-	e(err)
+	if err != nil {
+		e(err)
+	}
 	return a, b, c
 }
 
 // E4 returns a, b, c, and d as is.
 // It panics if err is non-nil.
 func E4[A, B, C, D any](a A, b B, c C, d D, err error) (A, B, C, D) {
-	e(err)
+	if err != nil {
+		e(err)
+	}
 	return a, b, c, d
 }
 
