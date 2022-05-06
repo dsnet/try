@@ -70,11 +70,12 @@
 //		return nil
 //	}
 //
-// # Quick tour of the API
+// Quick tour of the API
 //
 // The E family of functions all remove a final error return, panicking if non-nil.
 //
-// Handle allows easy assignment of that error to a return error value.
+// Handle recovers from that panic and allows assignment of the error to a return
+// error value. Other panics are not recovered.
 //
 //	func f() (err error) {
 //		defer try.Handle(&err)
@@ -83,16 +84,23 @@
 //
 // HandleF is like Handle, but it calls a function after any such assignment.
 //
-//	 func f() (err error) {
+//	func f() (err error) {
 //		defer try.HandleF(&err, func() {
 //			if err == io.EOF {
 //				err = io.ErrUnexpectedEOF
 //			}
 //		})
-//	 	...
-//	 }
+//		...
+//	}
 //
-// F wraps an error with file and line formation and calls a function on error.
+//	func foo(i int) (err error) {
+//		defer try.HandleF(&err, func() {
+//			err = fmt.Errorf("unable to foo %d: %w", i, err)
+//		})
+//		...
+//	}
+//
+// F wraps an error with file and line information and calls a function on error.
 // It inter-operates well with testing.TB and log.Fatal.
 //
 //	func TestFoo(t *testing.T) {
