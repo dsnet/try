@@ -116,12 +116,12 @@
 // Recover is like F, but it supports more complicated error handling
 // by passing the error and runtime frame directly to a function.
 //
-//	 func f() {
-//	 	defer try.Recover(func(err error, frame runtime.Frame) {
-//	 		// do something useful with err and frame
+//	func f() {
+//		defer try.Recover(func(err error, frame runtime.Frame) {
+//			// do something useful with err and frame
 //		})
-//	 	...
-//	 }
+//		...
+//	}
 package try
 
 import (
