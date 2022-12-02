@@ -89,6 +89,57 @@ See the [documentation][godev] for more information.
 go get -u github.com/dsnet/try
 ```
 
+## Semgrep rules
+
+These [semgrep](https://semgrep.dev) rules can help prevent bugs and abuse:
+
+```yaml
+rules:
+  - id: non-deferred-try-handle
+    patterns:
+      - pattern-either:
+          - pattern: try.F(...)
+          - pattern: try.Handle(...)
+          - pattern: try.HandleF(...)
+          - pattern: try.Recover(...)
+      - pattern-not: defer try.F(...)
+      - pattern-not: defer try.Handle(...)
+      - pattern-not: defer try.HandleF(...)
+      - pattern-not: defer try.Recover(...)
+    message: Calls to try handlers must be deferred
+    severity: ERROR
+    languages:
+      - go
+  - id: missing-try-handler
+    patterns:
+      - pattern-either:
+          - pattern: try.E(...)
+          - pattern: try.E1(...)
+          - pattern: try.E2(...)
+          - pattern: try.E3(...)
+          - pattern: try.E4(...)
+      - pattern-not-inside: |
+          ...
+          defer try.F(...)
+          ...
+      - pattern-not-inside: |
+          ...
+          defer try.Handle(...)
+          ...
+      - pattern-not-inside: |
+          ...
+          defer try.HandleF(...)
+          ...
+      - pattern-not-inside: |
+          ...
+          defer try.Recover(...)
+          ...
+    message: Calls to try.E[n] must have a matching function-local handler
+    severity: ERROR
+    languages:
+      - go
+```
+
 ## License
 
 BSD - See [LICENSE][license] file
